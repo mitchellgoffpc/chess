@@ -19,6 +19,24 @@ PROMOTIONS = [
   for piece in PIECES if piece is not chess.PAWN]
 NON_PROMOTIONS = [(square, None) for square in chess.SQUARES]
 TO_SQUARES = {square: i for i, square in enumerate(NON_PROMOTIONS + PROMOTIONS)}
+TO_SQUARE_INDICES = NON_PROMOTIONS + PROMOTIONS
+
+def get_board_state(board):
+  board_state = np.zeros((8, 8), dtype=np.uint8)
+  for square, piece in board.piece_map().items():
+    board_state[square // 8, square % 8] = PIECE_NUMBERS[piece.color, piece.piece_type]
+  return board_state
+
+def get_legal_moves_mask(board):
+  legal_moves = np.zeros((64, len(TO_SQUARES)), dtype=bool)
+  for legal_move in board.legal_moves:
+    legal_moves[legal_move.from_square, TO_SQUARES[legal_move.to_square, legal_move.promotion]] = True
+  return legal_moves.flatten()
+
+def get_move_for_action(action_idx):
+  from_square, to_square_idx = action_idx // len(TO_SQUARES), action_idx % len(TO_SQUARES)
+  to_square, promotion = TO_SQUARE_INDICES[to_square_idx]
+  return chess.Move(from_square=from_square, to_square=to_square, promotion=promotion)
 
 
 def numpy_collate(batch):
@@ -51,16 +69,12 @@ class ChessDataset(Dataset):
       board = chess.Board(fen)
       move = chess.Move.from_uci(uci)
 
-    board_np = np.zeros((8, 8), dtype=np.uint8)
-    for square, piece in board.piece_map().items():
-      board_np[square // 8, square % 8] = PIECE_NUMBERS[piece.color, piece.piece_type]
-    legal_moves = np.zeros((64, len(TO_SQUARES)), dtype=bool)
-    for legal_move in board.legal_moves:
-      legal_moves[legal_move.from_square, TO_SQUARES[legal_move.to_square, legal_move.promotion]] = True
+    board_state = get_board_state(board)
+    legal_moves = get_legal_moves_mask(board)
     gt_move = np.zeros((64, len(TO_SQUARES)), dtype=bool)
     gt_move[move.from_square, TO_SQUARES[move.to_square, move.promotion]] = True
 
-    return board_np, legal_moves, gt_move
+    return board_state, legal_moves, gt_move
 
 
 if __name__ == '__main__':
