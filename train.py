@@ -23,24 +23,24 @@ checkpoint_dir.mkdir(exist_ok=True)
 
 @jax.jit
 def train_step(state, batch):
-    def loss_fn(params):
-        inputs, _, targets = batch
-        preds = model.apply(params, inputs)
-        targets = jnp.reshape(targets, (-1, 64*144))
-        preds = jnp.reshape(preds, (-1, 64*144))
-        loss = optax.softmax_cross_entropy(preds, targets).mean()
-        return loss, loss
+  def loss_fn(params):
+    inputs, _, targets = batch
+    preds = model.apply(params, inputs)
+    targets = jnp.reshape(targets, (-1, 64*144))
+    preds = jnp.reshape(preds, (-1, 64*144))
+    loss = optax.softmax_cross_entropy(preds, targets).mean()
+    return loss, loss
 
-    grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
-    (_, loss), grads = grad_fn(state.params)
-    return state.apply_gradients(grads=grads), loss
+  grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
+  (_, loss), grads = grad_fn(state.params)
+  return state.apply_gradients(grads=grads), loss
 
 # Training loop
 running_loss = None
 for epoch in range(10):
-    for batch in (pbar := tqdm(dataloader)):
-        state, loss = train_step(state, batch)
-        running_loss = .99*(running_loss or loss) + .01*loss
-        pbar.set_description(f"Epoch {epoch+1} | Loss: {running_loss:.3f}")
+  for batch in (pbar := tqdm(dataloader)):
+    state, loss = train_step(state, batch)
+    running_loss = .99*(running_loss or loss) + .01*loss
+    pbar.set_description(f"Epoch {epoch+1} | Loss: {running_loss:.3f}")
 
-    save_checkpoint(ckpt_dir=checkpoint_dir, target=state, step=epoch)
+  save_checkpoint(ckpt_dir=checkpoint_dir, target=state, step=epoch)
