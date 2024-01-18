@@ -6,6 +6,14 @@ import multiprocessing
 from tqdm import tqdm
 from pathlib import Path
 
+def get_value(board, outcome):
+  if outcome and outcome.termination is chess.Termination.CHECKMATE:
+    return 1 if board.turn is outcome.winner else -1
+  elif outcome:
+    return 0
+  else:
+    return 'nan'
+
 def save_game_data(args):
   output_path, pgn = args
   game = chess.pgn.read_game(io.StringIO(pgn))
@@ -15,13 +23,14 @@ def save_game_data(args):
     game = game.next()
     if game is None:
       break
-    boards.append(board.fen())
-    moves.append(game.move.uci())
+    boards.append(board)
+    moves.append(game.move)
 
+  outcome = board.outcome()
   with open(output_path, 'w') as f:
     f.write(f"{len(boards)}\n")
     for board, move in zip(boards, moves):
-      f.write(f"{board} | {move}\n")
+      f.write(f"{board.fen()} | {move.uci()} | {get_value(board, outcome)}\n")
 
   return None
 

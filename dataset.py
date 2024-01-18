@@ -49,7 +49,7 @@ class DataLoader(TorchDataLoader):
 
 class ChessDataset(Dataset):
   def __init__(self):
-    self.fen_paths = list((Path(__file__).parent / 'data/fics/fens').iterdir())
+    self.fen_paths = sorted((Path(__file__).parent / 'data/fics/fens').iterdir())
     self.game_indices = []
     self.game_start_indices = []
     for game_idx, fn in enumerate(tqdm(self.fen_paths, desc='Loading FENs')):
@@ -65,24 +65,25 @@ class ChessDataset(Dataset):
     game_start_idx = self.game_start_indices[game_idx]
     with open(self.fen_paths[game_idx]) as f:
       lines = f.read().split('\n')[1:]
-      fen, uci = lines[idx - game_start_idx].split(' | ')
+      fen, uci, value = lines[idx - game_start_idx].split(' | ')
       board = chess.Board(fen)
       move = chess.Move.from_uci(uci)
+      value = float(value)
 
     board_state = get_board_state(board)
     legal_moves = get_legal_moves_mask(board)
     gt_move = np.zeros((64, len(TO_SQUARES)), dtype=bool)
     gt_move[move.from_square, TO_SQUARES[move.to_square, move.promotion]] = True
 
-    return board_state, legal_moves, gt_move
+    return board_state, legal_moves, gt_move, value
 
 
 if __name__ == '__main__':
   ds = ChessDataset()
   ldr = DataLoader(ds, batch_size=32)
 
-  x, y, z = ds[0]
-  print(x.shape, y.shape, z.shape)
+  w, x, y, z = ds[0]
+  print(w.shape, x.shape, y.shape, z)
 
-  for x, y, z in tqdm(ldr):
+  for w, x, y, z in tqdm(ldr):
     pass

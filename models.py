@@ -68,7 +68,6 @@ class ResNet(nn.Module):
     152: (Bottleneck, 4, [3, 8, 36, 3])}
 
   size: int
-  outputs: int
 
   def setup(self):
     assert self.size in ResNet.CONFIGS, f"Invalid size ({size}), choices are {list(ResNet.CONFIGS.keys())}"
@@ -84,7 +83,6 @@ class ResNet(nn.Module):
       layers.append(nn.Sequential(blocks))
 
     self.layers = layers
-    self.fc = nn.Dense(self.outputs)
 
   def __call__(self, x, train=False):
     x = self.embed(x)
@@ -92,4 +90,19 @@ class ResNet(nn.Module):
     x = nn.max_pool(x, window_shape=(3, 3), strides=(2, 2), padding=((1, 1), (1, 1)))
     for block in self.layers:
       x = block(x, train=train)
-    return self.fc(x.mean((1, 2)))
+    return x
+
+
+class ChessModel(nn.Module):
+  def setup(self):
+    self.resnet = ResNet(50)
+    self.conv = nn.Conv(16, kernel_size=(1, 1))
+    self.value = nn.Dense(1)
+    self.policy = nn.Dense(64 * 144)
+
+  def __call__(self, x, train=False):
+    x = self.resnet(x)
+    x = x.mean((1, 2))
+    v = self.value(x)
+    p = self.policy(x)
+    return v, p
